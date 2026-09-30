@@ -99,57 +99,39 @@ class EnigmaMachine:
     def _rotate_rotors(self):
         left, middle, right = self.rotors[0], self.rotors[1], self.rotors[2]
 
-        # Comprovar si el rotor central o el dret estan en el notch abans del pas
         middle_in_notch = chr(middle.position + 65) in middle.notch
         right_in_notch = chr(right.position + 65) in right.notch
 
-        # El rotor central fa double stepping si està en el notch
         if middle_in_notch:
             middle.step()
             left.step()
-
-        # El rotor dret fa avançar el central quan arriba en el notch
         elif right_in_notch:
             middle.step()
 
-        # El rotor dret sempre avança a cada pulsació
         right.step()
 
     def process_char(self, char: str) -> str:
-        """Processa un sol caràcter. Si no és lletra A-Z, es retorna el caràcter sense modificacions."""
         if not char.isalpha():
             return char
 
         is_lower = char.islower()
         c_idx = ord(char.upper()) - 65
 
-        # Avançar rotors
         self._rotate_rotors()
-
-        # Claviller (Entrada)
         c_idx = self.plugboard.swap(c_idx)
-
-        # Rotors (Directe: Dreta -> Centre -> Esquerra)
         c_idx = self.rotors[2].forward(c_idx)
         c_idx = self.rotors[1].forward(c_idx)
         c_idx = self.rotors[0].forward(c_idx)
-
-        # Reflector
         c_idx = self.reflector.reflect(c_idx)
-
-        # Rotors (Invers: Esquerra -> Centre -> Dreta)
         c_idx = self.rotors[0].backward(c_idx)
         c_idx = self.rotors[1].backward(c_idx)
         c_idx = self.rotors[2].backward(c_idx)
-
-        # Claviller (Sortida)
         c_idx = self.plugboard.swap(c_idx)
 
         res_char = chr(c_idx + 65)
         return res_char.lower() if is_lower else res_char
 
     def process_text(self, text: str) -> str:
-        """Xifra o desxifra una cadena sencera de text."""
         return "".join(self.process_char(c) for c in text)
 
 
@@ -194,7 +176,6 @@ class M3:
 
 
 def _pick_font_family(preferred):
-    """Torna la primera família de la llista que existeixi al sistema."""
     available = set(tkfont.families())
     for name in preferred:
         if name in available:
@@ -210,30 +191,26 @@ class EnigmaChatApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Xat Enigma · Criptografia Digital")
-        self.root.geometry("760x1000")
-        self.root.minsize(700, 1000)
+        self.root.geometry("760x800")
+        self.root.minsize(700, 750)
         self.root.configure(bg=M3.SURFACE)
 
         self.client_socket = None
         self.connected = False
 
-        # Fonts
         body_family = _pick_font_family(["Roboto", "Segoe UI", "Helvetica Neue", "Helvetica", "Arial"])
         mono_family = _pick_font_family(["Roboto Mono", "Consolas", "Menlo", "Courier New"])
 
-        self.font_display = (body_family, 18, "bold")       # Top-app bar
-        self.font_title = (body_family, 11, "bold")         # Títols de secció
-        self.font_label = (body_family, 10)                 # Etiquetes de camp
-        self.font_body = (body_family, 10)                  # Text dels inputs
-        self.font_button = (body_family, 10, "bold")        # Botons
-        self.font_mono = (mono_family, 10)                  # Contingut del xat
+        self.font_display = (body_family, 18, "bold")
+        self.font_title = (body_family, 11, "bold")
+        self.font_label = (body_family, 10)
+        self.font_body = (body_family, 10)
+        self.font_button = (body_family, 10, "bold")
+        self.font_mono = (mono_family, 10)
 
         self._configure_style()
         self._build_ui()
 
-    # ------------------------------------------
-    # ESTIL
-    # ------------------------------------------
     def _configure_style(self):
         self.style = ttk.Style(self.root)
         if "clam" in self.style.theme_names():
@@ -241,7 +218,6 @@ class EnigmaChatApp:
 
         s = self.style
 
-        # --- Contenidors ---
         s.configure("Surface.TFrame", background=M3.SURFACE)
         s.configure("TopBar.TFrame", background=M3.PRIMARY)
         s.configure("Card.TFrame", background=M3.SURFACE_CONTAINER, relief="flat")
@@ -260,12 +236,10 @@ class EnigmaChatApp:
             font=self.font_title,
         )
 
-        # --- Etiquetes ---
         s.configure("TLabel", background=M3.SURFACE_CONTAINER, foreground=M3.ON_SURFACE_VARIANT, font=self.font_label)
         s.configure("Heading.TLabel", background=M3.SURFACE_CONTAINER, foreground=M3.ON_SURFACE, font=self.font_title)
         s.configure("OnBar.TLabel", background=M3.PRIMARY, foreground=M3.ON_PRIMARY)
 
-        # --- Botó 1 (estàtic) ---
         s.configure(
             "Filled.TButton",
             background=M3.PRIMARY,
@@ -281,7 +255,6 @@ class EnigmaChatApp:
             foreground=[("disabled", M3.OUTLINE)],
         )
 
-        # --- Botó 2 (acció secundària M3, com Enviar) ---
         s.configure(
             "Tonal.TButton",
             background=M3.SECONDARY_CONTAINER,
@@ -297,7 +270,6 @@ class EnigmaChatApp:
             foreground=[("disabled", M3.OUTLINE)],
         )
 
-        # --- Camps de text ---
         s.configure(
             "M3.TEntry",
             fieldbackground=M3.SURFACE_CONTAINER_HIGHEST,
@@ -317,7 +289,6 @@ class EnigmaChatApp:
             darkcolor=[("focus", M3.PRIMARY)],
         )
 
-        # --- Combobox ---
         s.configure(
             "M3.TCombobox",
             fieldbackground=M3.SURFACE_CONTAINER_HIGHEST,
@@ -336,7 +307,6 @@ class EnigmaChatApp:
         self.root.option_add("*TCombobox*Listbox.selectForeground", M3.ON_PRIMARY_CONTAINER)
         self.root.option_add("*TCombobox*Listbox.font", self.font_body)
 
-        # --- Barra de scroll ---
         s.configure(
             "M3.Vertical.TScrollbar",
             background=M3.SURFACE_CONTAINER_HIGH,
@@ -347,9 +317,6 @@ class EnigmaChatApp:
         )
         s.map("M3.Vertical.TScrollbar", background=[("active", M3.OUTLINE_VARIANT)])
 
-    # ------------------------------------------
-    # UI FRAMES
-    # ------------------------------------------
     def _build_ui(self):
         # --- Barra superior ---
         top_bar = ttk.Frame(self.root, style="TopBar.TFrame", padding=(20, 16))
@@ -398,7 +365,6 @@ class EnigmaChatApp:
         alphabet = [chr(i) for i in range(65, 91)]
         rotor_options = ["I", "II", "III", "IV", "V"]
 
-        # Reflector
         ttk.Label(frame_enigma, text="Reflector").grid(row=0, column=0, padx=(0, 6), pady=6, sticky="e")
         self.combo_reflector = ttk.Combobox(
             frame_enigma, values=["B", "C"], width=5, state="readonly", style="M3.TCombobox", font=self.font_body
@@ -406,12 +372,10 @@ class EnigmaChatApp:
         self.combo_reflector.set("B")
         self.combo_reflector.grid(row=0, column=1, padx=6, pady=6, sticky="w")
 
-        # Rotors (vistes)
         ttk.Label(frame_enigma, text="Esquerra (1)", style="Heading.TLabel").grid(row=0, column=2, padx=6)
         ttk.Label(frame_enigma, text="Centre (2)", style="Heading.TLabel").grid(row=0, column=3, padx=6)
         ttk.Label(frame_enigma, text="Dreta (3)", style="Heading.TLabel").grid(row=0, column=4, padx=6)
 
-        # Selecció de Rotors
         ttk.Label(frame_enigma, text="Rotors").grid(row=1, column=0, padx=(0, 6), pady=6, sticky="e")
 
         self.combo_rotor_left = ttk.Combobox(
@@ -432,7 +396,6 @@ class EnigmaChatApp:
         self.combo_rotor_right.set("III")
         self.combo_rotor_right.grid(row=1, column=4, padx=6, pady=4)
 
-        # Grundstellung
         ttk.Label(frame_enigma, text="Grundstellung").grid(row=2, column=0, padx=(0, 6), pady=6, sticky="e")
 
         self.combo_pos_left = ttk.Combobox(
@@ -453,7 +416,6 @@ class EnigmaChatApp:
         self.combo_pos_right.set("A")
         self.combo_pos_right.grid(row=2, column=4, padx=6, pady=4)
 
-        # Ringstellung
         ttk.Label(frame_enigma, text="Ringstellung").grid(row=3, column=0, padx=(0, 6), pady=6, sticky="e")
 
         self.combo_ring_left = ttk.Combobox(
@@ -474,7 +436,6 @@ class EnigmaChatApp:
         self.combo_ring_right.set("A")
         self.combo_ring_right.grid(row=3, column=4, padx=6, pady=4)
 
-        # Claviller
         ttk.Label(frame_enigma, text="Claviller (ex: AB CD EX)").grid(
             row=4, column=0, columnspan=2, padx=(0, 6), pady=(10, 4), sticky="e"
         )
@@ -482,7 +443,22 @@ class EnigmaChatApp:
         self.entry_plugboard.insert(0, "")
         self.entry_plugboard.grid(row=4, column=2, columnspan=3, padx=6, pady=(10, 4), sticky="w")
 
-        # --- Àrea de xat ---
+        # ------------------------------------------
+        # PACK ORDER
+        # ------------------------------------------
+
+        # ÀREA ENTRADA MISSATGES -> INFERIOR
+        frame_input = ttk.Frame(body, style="Surface.TFrame", padding=(16, 8))
+        frame_input.pack(fill="x", side="bottom", padx=16, pady=(8, 16))
+
+        self.entry_msg = ttk.Entry(frame_input, style="M3.TEntry", font=self.font_body)
+        self.entry_msg.pack(side="left", fill="x", expand=True, padx=(0, 10), ipady=4)
+        self.entry_msg.bind("<Return>", lambda event: self.send_message())
+
+        btn_send = ttk.Button(frame_input, text="Enviar", command=self.send_message, style="Tonal.TButton")
+        btn_send.pack(side="right")
+
+        # EMPAQUETAMENT RESTA ESPAI NO OCUPAT
         frame_chat = tk.Frame(body, bg=M3.SURFACE_CONTAINER, highlightbackground=M3.OUTLINE_VARIANT,
                                highlightthickness=1, bd=0)
         frame_chat.pack(fill="both", expand=True, padx=16, pady=8)
@@ -529,19 +505,7 @@ class EnigmaChatApp:
             "divider", foreground=M3.OUTLINE_VARIANT, font=(self.font_mono[0], 8), spacing3=6,
         )
 
-        # --- Text d'entrada de missatges ---
-        frame_input = ttk.Frame(body, style="Surface.TFrame", padding=(16, 8))
-        frame_input.pack(fill="x", padx=16, pady=(8, 16))
-
-        self.entry_msg = ttk.Entry(frame_input, style="M3.TEntry", font=self.font_body)
-        self.entry_msg.pack(side="left", fill="x", expand=True, padx=(0, 10), ipady=4)
-        self.entry_msg.bind("<Return>", lambda event: self.send_message())
-
-        btn_send = ttk.Button(frame_input, text="Enviar", command=self.send_message, style="Tonal.TButton")
-        btn_send.pack(side="right")
-
     def get_enigma_instance(self) -> EnigmaMachine:
-        """Crea una instància d'EnigmaMachine basada en la selecció dels desplegables."""
         reflector_name = self.combo_reflector.get()
         rotor_names = (
             self.combo_rotor_left.get(),
@@ -608,7 +572,6 @@ class EnigmaChatApp:
             enigma = self.get_enigma_instance()
             ciphertext = enigma.process_text(plaintext)
 
-            # S'envia el missatge com "Usuari: TextoCifrado"
             payload = f"{username}: {ciphertext}"
             self.client_socket.send(payload.encode('utf-8'))
             self.entry_msg.delete(0, tk.END)
@@ -625,7 +588,6 @@ class EnigmaChatApp:
 
                 raw_payload = data.decode('utf-8')
 
-                # Separar l'usuari del text xifrat
                 if ":" in raw_payload:
                     sender, ciphertext = raw_payload.split(":", 1)
                     sender = sender.strip()
@@ -649,7 +611,6 @@ class EnigmaChatApp:
         self._log_chat("[SISTEMA] S'ha perdut la connexió amb el servidor.\n", "system")
 
     def _log_message(self, sender: str, ciphertext: str, decrypted_text: str):
-        """Escriu un missatge rebut a l'àrea de xat amb el format Material 3."""
         self.chat_box.config(state="normal")
         self.chat_box.insert(tk.END, f"{sender}\n", "sender")
         self.chat_box.insert(tk.END, "  Xifrat    ", "cipher_label")
